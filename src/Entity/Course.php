@@ -74,8 +74,6 @@ class Course
     public function __construct()
     {
         $this->sessions = new ArrayCollection();
-        $this->isPrivate = false;
-        $this->targetAudience = 'both';
     }
 
     // --------------------

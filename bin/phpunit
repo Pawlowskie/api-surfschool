@@ -1,0 +1,13 @@
+#!/usr/bin/env php
+<?php
+
+$projectDir = \dirname(__DIR__);
+$phpunit = $projectDir.'/vendor/bin/simple-phpunit';
+
+if (!\file_exists($phpunit)) {
+    fwrite(STDERR, "simple-phpunit not found. Run: composer require --dev symfony/phpunit-bridge\n");
+    exit(1);
+}
+
+passthru($phpunit, $status);
+exit($status);

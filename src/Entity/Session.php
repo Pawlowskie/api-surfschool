@@ -17,6 +17,8 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use App\Entity\Booking;
+use App\Exception\CapacityBelowBookedSeatsException;
+use App\Exception\InvalidCapacityException;
 
 
 #[ORM\Entity(repositoryClass: SessionRepository::class)]
@@ -71,6 +73,10 @@ class Session
     #[Groups(['session:read', 'session:write'])]
     private bool $isCancelled = false;
 
+    #[ORM\Version]
+    #[ORM\Column(type: 'integer')]
+    private int $version = 1;
+
     /**
      * @var Collection<int, Booking>
      */
@@ -122,7 +128,7 @@ class Session
     public function setCapacity(int $capacity): static
     {
         if ($capacity <= 0) {
-            throw new \InvalidArgumentException('La capacité doit être positive.');
+            throw new InvalidCapacityException('La capacité doit être positive.');
         }
 
         $bookedSeats = 0;
@@ -132,7 +138,7 @@ class Session
         }
 
         if ($capacity < $bookedSeats) {
-            throw new \LogicException('Impossible de réduire la capacité en dessous du nombre de places déjà réservées.');
+            throw new CapacityBelowBookedSeatsException('Impossible de réduire la capacité en dessous du nombre de places déjà réservées.');
         }
 
         $this->capacity = $capacity;
@@ -176,15 +182,6 @@ class Session
     public function setIsCancelled(bool $isCancelled): static
     {
         $this->isCancelled = $isCancelled;
-
-        // Si la session est annulée, on marque aussi toutes ses réservations comme annulées
-        if ($isCancelled) {
-            foreach ($this->bookings as $booking) {
-                if (!$booking->isCancelled()) {
-                    $booking->cancel();
-                }
-            }
-        }
 
         return $this;
     }

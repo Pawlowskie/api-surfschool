@@ -1,0 +1,9 @@
+services:
+    Symfony\Component\Mailer\EventListener\MessageLoggerListener:
+        public: true
+        tags: ['kernel.event_subscriber']
+    test.api_platform.client:
+        class: ApiPlatform\Symfony\Bundle\Test\Client
+        arguments: ['@test.client']
+        public: true
+        shared: false

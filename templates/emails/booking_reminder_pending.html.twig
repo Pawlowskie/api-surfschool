@@ -1,0 +1,27 @@
+<h1>Confirmez votre réservation</h1>
+
+<p>Bonjour {{ recipientEmail }},</p>
+
+<p>
+    Votre réservation pour <strong>{{ sessionTitle }}</strong> est toujours en attente,
+    et la session a lieu dans 24h.
+</p>
+
+<p>
+    Date/heure : {{ sessionStart }}
+</p>
+
+{% if confirmationUrl %}
+<p>
+    Confirmez votre réservation ici :
+    <a href="{{ confirmationUrl }}">{{ confirmationUrl }}</a>
+</p>
+{% else %}
+<p>
+    Merci de nous contacter si vous ne retrouvez pas votre lien de confirmation.
+</p>
+{% endif %}
+
+<p>
+    Sans confirmation, la réservation sera annulée automatiquement 12h avant la session.
+</p>

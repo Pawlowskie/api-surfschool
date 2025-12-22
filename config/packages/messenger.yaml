@@ -14,6 +14,9 @@ framework:
             # Route your messages to the transports
             # 'App\Message\YourMessage': async
             'App\Message\SendVerificationEmailMessage': async
+            'App\Message\SendBookingConfirmationEmailMessage': async
+            'App\Message\SendBookingReminderEmailMessage': async
+            'App\Message\SendBookingCancellationEmailMessage': async
 
 # when@test:
 #    framework:

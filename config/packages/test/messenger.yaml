@@ -1,0 +1,10 @@
+framework:
+    messenger:
+        transports:
+            async: 'sync://'
+
+        routing:
+            'App\Message\SendVerificationEmailMessage': async
+            'App\Message\SendBookingConfirmationEmailMessage': async
+            'App\Message\SendBookingReminderEmailMessage': async
+            'App\Message\SendBookingCancellationEmailMessage': async

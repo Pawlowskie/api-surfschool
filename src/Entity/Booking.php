@@ -8,6 +8,8 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Enum\BookingStatus;
+use App\Exception\BookingSessionRequiredException;
 use App\Repository\BookingRepository;
 use App\State\BookingProcessor;
 use Doctrine\ORM\Mapping as ORM;
@@ -33,10 +35,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 class Booking
 {
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_CONFIRMED = 'confirmed';
-    public const STATUS_CANCELLED = 'cancelled';
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -73,10 +71,21 @@ class Booking
     #[Groups(['booking:read', 'booking:write', 'session:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\Column(length: 20)]
-    #[Assert\Choice(['pending', 'confirmed', 'cancelled'])]
+    #[ORM\Column(enumType: BookingStatus::class)]
     #[Groups(['booking:read', 'booking:write', 'session:read'])]
-    private string $status = self::STATUS_PENDING;
+    private BookingStatus $status = BookingStatus::Pending;
+
+    #[ORM\Column(type: 'string', length: 64, nullable: true, unique: true)]
+    private ?string $confirmationToken = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $confirmationSentAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $confirmedAt = null;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $reminderSentAt = null;
 
     #[ORM\ManyToOne(inversedBy: 'bookings')]
     #[ORM\JoinColumn(nullable: false)]
@@ -95,25 +104,17 @@ class Booking
     public function onPrePersist(): void
     {
         $this->createdAt = new \DateTimeImmutable();
-        $this->status ??= self::STATUS_PENDING;
-    }
-
-    #[ORM\PreRemove]
-    public function onPreRemove(): void
-    {
-        if ($this->statusHoldsSeat($this->status) && $this->session) {
-            $this->releaseSeat($this->session);
-        }
+        $this->status ??= BookingStatus::Pending;
     }
 
     public function confirm(): void
     {
-        $this->setStatus(self::STATUS_CONFIRMED);
+        $this->setStatus(BookingStatus::Confirmed);
     }
 
     public function cancel(): void
     {
-        $this->setStatus(self::STATUS_CANCELLED);
+        $this->setStatus(BookingStatus::Cancelled);
     }
 
     // ------------------------
@@ -179,46 +180,65 @@ class Booking
         return $this->createdAt;
     }
 
-    public function getStatus(): string
+    public function getStatus(): BookingStatus
     {
         return $this->status;
     }
-    public function setStatus(string $status): static
+    public function setStatus(BookingStatus $status): static
     {
-        $allowedStatuses = [
-            self::STATUS_PENDING,
-            self::STATUS_CONFIRMED,
-            self::STATUS_CANCELLED,
-        ];
-
-        if (!\in_array($status, $allowedStatuses, true)) {
-            throw new \InvalidArgumentException(sprintf('Statut "%s" invalide.', $status));
-        }
-
-        $previousStatus = $this->status ?? self::STATUS_PENDING;
-
-        if ($status === $previousStatus) {
+        if ($status === $this->status) {
             return $this;
         }
 
-        $previousHoldingSeat = $this->statusHoldsSeat($previousStatus);
-        $nextHoldingSeat = $this->statusHoldsSeat($status);
-
-        if ($nextHoldingSeat && !$previousHoldingSeat) {
-            if (!$this->session) {
-                if ($this->id !== null) {
-                    throw new \LogicException('Impossible de réserver une place sans session associée.');
-                }
-            } else {
-                $this->reserveSeat($this->session);
-            }
-        }
-
-        if ($previousHoldingSeat && !$nextHoldingSeat && $this->session) {
-            $this->releaseSeat($this->session);
-        }
-
         $this->status = $status;
+
+        return $this;
+    }
+
+    public function getConfirmationToken(): ?string
+    {
+        return $this->confirmationToken;
+    }
+
+    public function setConfirmationToken(?string $confirmationToken): static
+    {
+        $this->confirmationToken = $confirmationToken;
+
+        return $this;
+    }
+
+    public function getConfirmationSentAt(): ?\DateTimeImmutable
+    {
+        return $this->confirmationSentAt;
+    }
+
+    public function setConfirmationSentAt(?\DateTimeImmutable $confirmationSentAt): static
+    {
+        $this->confirmationSentAt = $confirmationSentAt;
+
+        return $this;
+    }
+
+    public function getConfirmedAt(): ?\DateTimeImmutable
+    {
+        return $this->confirmedAt;
+    }
+
+    public function setConfirmedAt(?\DateTimeImmutable $confirmedAt): static
+    {
+        $this->confirmedAt = $confirmedAt;
+
+        return $this;
+    }
+
+    public function getReminderSentAt(): ?\DateTimeImmutable
+    {
+        return $this->reminderSentAt;
+    }
+
+    public function setReminderSentAt(?\DateTimeImmutable $reminderSentAt): static
+    {
+        $this->reminderSentAt = $reminderSentAt;
 
         return $this;
     }
@@ -234,21 +254,10 @@ class Booking
         }
 
         if ($session === null) {
-            throw new \LogicException('Une réservation doit toujours être rattachée à une session.');
-        }
-
-        $currentSession = $this->session;
-        $holdsSeat = $this->statusHoldsSeat($this->status);
-
-        if ($holdsSeat && $currentSession) {
-            $this->releaseSeat($currentSession);
+            throw new BookingSessionRequiredException('Une réservation doit toujours être rattachée à une session.');
         }
 
         $this->session = $session;
-
-        if ($holdsSeat) {
-            $this->reserveSeat($session);
-        }
 
         return $this;
     }
@@ -263,36 +272,4 @@ class Booking
         return $this;
     }
 
-    private function statusHoldsSeat(string $status): bool
-    {
-        return \in_array($status, [self::STATUS_PENDING, self::STATUS_CONFIRMED], true);
-    }
-
-    private function reserveSeat(Session $session): void
-    {
-        if ($session->isCancelled()) {
-            throw new \LogicException('Impossible de confirmer une réservation sur une session annulée.');
-        }
-
-        $spots = $session->getAvailableSpots();
-        if ($spots === null) {
-            throw new \LogicException("Le nombre de places disponibles n'est pas initialisé.");
-        }
-
-        if ($spots <= 0) {
-            throw new \LogicException('Aucune place disponible pour cette session.');
-        }
-
-        $session->setAvailableSpots($spots - 1);
-    }
-
-    private function releaseSeat(Session $session): void
-    {
-        $spots = $session->getAvailableSpots();
-        if ($spots === null) {
-            throw new \LogicException("Le nombre de places disponibles n'est pas initialisé.");
-        }
-
-        $session->setAvailableSpots($spots + 1);
-    }
 }
