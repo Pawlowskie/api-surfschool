@@ -12,3 +12,14 @@
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
+
+###> editors ###
+.idea/
+.vscode/
+*.swp
+*.swo
+###< editors ###
+
+###> logs ###
+*.log
+###< logs ###
