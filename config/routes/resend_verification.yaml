@@ -1,0 +1,4 @@
+resend_verification:
+    path: /api/resend-verification
+    controller: App\Controller\ResendVerificationController
+    methods: [POST]
