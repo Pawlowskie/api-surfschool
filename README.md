@@ -4,6 +4,11 @@
 
 REST API for a surf school booking system. It lets admins create courses and schedule sessions, and lets users reserve seats with confirmation and reminder flows. The goal is to keep capacity consistent, enforce permissions, and automate time-based actions (reminders and cancellations).
 
+## Why This Project
+
+- Practice real booking constraints (capacity, timing, confirmations).
+- Show clean API design with roles and automated jobs.
+
 ## Key Features
 
 - Course and session management with capacity and available seats.
@@ -42,6 +47,12 @@ REST API for a surf school booking system. It lets admins create courses and sch
 - Business exceptions are mapped to API errors.
 - Booking status uses a PHP Enum for type safety.
 - Session uses optimistic locking (`version`) to protect seat updates.
+
+## Roadmap
+
+- Add payment flow (Stripe) before confirmation.
+- Add user self-service (resend confirmation email, update profile).
+- Add admin dashboard stats (occupancy, cancellations).
 
 ## Booking Status Values
 

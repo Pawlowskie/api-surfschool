@@ -16,7 +16,7 @@ final class BookingManager
     {
         $status ??= BookingStatus::Pending;
 
-        return \in_array($status, [BookingStatus::Pending, BookingStatus::Confirmed], true);
+        return $status->holdsSeat();
     }
 
     public function syncSeats(

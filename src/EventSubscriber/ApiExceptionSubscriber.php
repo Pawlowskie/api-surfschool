@@ -6,6 +6,7 @@ use App\Exception\AvailableSpotsNotInitializedException;
 use App\Exception\BookingSessionRequiredException;
 use App\Exception\CapacityBelowBookedSeatsException;
 use App\Exception\CapacityExceededException;
+use App\Exception\ConflictException;
 use App\Exception\InvalidCapacityException;
 use App\Exception\NoAvailableSpotsException;
 use App\Exception\SessionCancelledException;
@@ -30,7 +31,8 @@ final class ApiExceptionSubscriber implements EventSubscriberInterface
         $status = match (true) {
             $exception instanceof NoAvailableSpotsException,
             $exception instanceof SessionCancelledException,
-            $exception instanceof CapacityExceededException => 409,
+            $exception instanceof CapacityExceededException,
+            $exception instanceof ConflictException => 409,
             $exception instanceof BookingSessionRequiredException,
             $exception instanceof AvailableSpotsNotInitializedException,
             $exception instanceof InvalidCapacityException,
