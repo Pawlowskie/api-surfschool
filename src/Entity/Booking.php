@@ -27,7 +27,9 @@ use Symfony\Component\Validator\Constraints as Assert;
             security: "is_granted('ROLE_USER')",
             securityMessage: "Vous devez être connecté pour créer une réservation."
         ),
-        new Patch(security: "is_granted('ROLE_ADMIN') or object.getUser() == user"),
+        new Patch(
+            processor: BookingProcessor::class,
+            security: "is_granted('ROLE_ADMIN') or object.getUser() == user"),
         new Delete(security: "is_granted('ROLE_ADMIN')")
     ],
     normalizationContext: ['groups' => ['booking:read']],

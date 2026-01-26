@@ -2,65 +2,52 @@
 
 ## Overview
 
-REST API for a surf school booking system. It lets admins create courses and schedule sessions, and lets users reserve seats with confirmation and reminder flows. The goal is to keep capacity consistent, enforce permissions, and automate time-based actions (reminders and cancellations).
+REST API for a surf school booking system. Admins manage courses and sessions, users reserve seats with confirmation and reminder flows. The focus is on consistency (capacity), security (roles + JWT), and automated workflows (emails + jobs).
 
-## Why This Project
+## Live Demo
 
-- Practice real booking constraints (capacity, timing, confirmations).
-- Show clean API design with roles and automated jobs.
+- API URL: <ADD_URL>
+- Swagger UI: <ADD_URL>/api/docs
+- Demo account: <ADD_EMAIL> / <ADD_PASSWORD>
+- Screenshots: <ADD_FOLDER_OR_LINK>
 
 ## Key Features
 
-- Course and session management with capacity and available seats.
-- Booking lifecycle with statuses: `pending`, `confirmed`, `cancelled`.
-- Email confirmation link for pending bookings.
-- Automatic reminders 24h before session start.
-- Automatic cancellation of unconfirmed bookings 12h before the session.
-- Role-based access control (admin vs authenticated user vs public).
+- Course and session management with capacity enforcement.
+- Booking lifecycle: `pending`, `confirmed`, `cancelled`.
+- Email confirmation for pending bookings.
+- Automated reminders 24h before session start.
+- Auto-cancel pending bookings 12h before session.
+- JWT auth with refresh token rotation.
+- Self-service profile actions: change email, change password.
 
 ## Domain Rules
 
 - `pending` and `confirmed` bookings hold a seat.
 - `cancelled` releases the seat.
-- Capacity can never be reduced below already booked seats.
-- Reminders are sent 24h before start for both pending and confirmed bookings.
-- Pending bookings are cancelled 12h before start if still not confirmed.
+- Capacity cannot drop below booked seats.
+- Reminders go out 24h before start.
+- Pending bookings cancel 12h before start if not confirmed.
 
 ## Access Control
 
 - Public: GET courses and sessions.
-- Authenticated users: can read their own bookings.
-- Admins: full CRUD on courses, sessions, and bookings.
+- Authenticated users: read their own bookings.
+- Authenticated users: change email and password (email change triggers re-verification).
+- Admins: full CRUD on courses, sessions, bookings.
 
-## Tech Stack
+## Auth Flow (JWT + Refresh Tokens)
 
-- Symfony 7 + API Platform
-- Doctrine ORM (SQLite in tests)
-- LexikJWTAuthenticationBundle (JWT auth)
-- Messenger + Mailer (async email)
-- PHPUnit (unit + integration tests)
+- Login returns `token` + `refresh_token`.
+- Refresh rotates the refresh token (single-use).
+- Changing email invalidates refresh tokens and requires re-verification.
 
-## Architecture Notes
+## API Highlights
 
-- `BookingManager` and `SessionManager` centralize seat logic.
-- Doctrine subscribers keep seat counts consistent on create/update/delete.
-- Business exceptions are mapped to API errors.
-- Booking status uses a PHP Enum for type safety.
-- Session uses optimistic locking (`version`) to protect seat updates.
-
-## Roadmap
-
-- Add payment flow (Stripe) before confirmation.
-- Add user self-service (resend confirmation email, update profile).
-- Add admin dashboard stats (occupancy, cancellations).
-
-## Booking Status Values
-
-The `status` field accepts one of:
-
-- `pending`
-- `confirmed`
-- `cancelled`
+- Auth: `POST /api/login_check`, `POST /api/token/refresh`
+- Profile: `GET /api/me`, `PATCH /api/me/email`, `PATCH /api/me/password`
+- Bookings: `POST /api/bookings`, `GET /api/bookings/{id}`, `PATCH /api/bookings/{id}`
+- Admin: courses/sessions CRUD
 
 ## API Examples
 
@@ -82,60 +69,71 @@ curl -X POST 'http://localhost:8000/api/bookings' \
   }'
 ```
 
-Update a booking status:
-
-```bash
-curl -X PATCH 'http://localhost:8000/api/bookings/1' \
-  -H 'accept: application/ld+json' \
-  -H 'Content-Type: application/merge-patch+json' \
-  -H 'Authorization: Bearer <JWT>' \
-  -d '{
-    "status": "confirmed"
-  }'
-```
-
-Confirm a booking from the email link:
+Confirm a booking:
 
 ```bash
 curl -X GET 'http://localhost:8000/api/bookings/confirm/<token>'
 ```
 
-## Background Jobs (CLI)
-
-Send booking reminders (24h before session):
+Change email (re-verification required):
 
 ```bash
-php bin/console app:send-booking-reminders
+curl -X PATCH 'http://localhost:8000/api/me/email' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <JWT>' \
+  -d '{"email":"new@email.com"}'
 ```
 
-Auto-cancel pending bookings 12h before session (and notify by email):
+Change password (requires current password):
 
 ```bash
-php bin/console app:cancel-expired-bookings
+curl -X PATCH 'http://localhost:8000/api/me/password' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <JWT>' \
+  -d '{"currentPassword":"OLD_PASS","password":"NEW_PASS_123"}'
 ```
 
-## Tests (PHPUnit)
+## Background Jobs
 
-Run all tests (use your local PHP binary):
+- Send booking reminders: `php bin/console app:send-booking-reminders`
+- Cancel expired bookings: `php bin/console app:cancel-expired-bookings`
+- Clear expired refresh tokens (nightly at 03:00): `php bin/console gesdinet:jwt:clear`
+
+Scheduler worker:
+
+```bash
+php bin/console messenger:consume scheduler_default -vv
+```
+
+## Local Setup
+
+```bash
+composer install
+php bin/console doctrine:migrations:migrate
+symfony server:start
+```
+
+Environment variables:
+
+- `DATABASE_URL`
+- `JWT_SECRET_KEY`, `JWT_PUBLIC_KEY`, `JWT_PASSPHRASE`
+- `MAILER_DSN`
+- `MESSENGER_TRANSPORT_DSN`
+
+Workers (async emails):
+
+```bash
+php bin/console messenger:consume async -vv
+```
+
+## Tests
 
 ```bash
 APP_ENV=test php vendor/bin/phpunit
 ```
 
-Readable output (one line per test):
-
-```bash
-APP_ENV=test php vendor/bin/phpunit --testdox
-```
-
-Run a single test file:
-
-```bash
-APP_ENV=test php vendor/bin/phpunit tests/Integration/BookingPermissionsTest.php
-```
-
 Notes:
 
 - Test DB uses `var/test.db` (SQLite).
-- Mailer uses `null://null` in tests (no real emails).
-- JWT uses test keys from `config/jwt/test_private.pem` and `config/jwt/test_public.pem`.
+- Mailer uses `null://null` in tests.
+- JWT test keys live in `config/jwt/`.

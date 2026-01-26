@@ -24,6 +24,13 @@ security:
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
+        refresh:
+            pattern: ^/api/token/refresh
+            stateless: true
+            provider: app_user_provider
+            refresh_jwt:
+                check_path: /api/token/refresh
+
         api:
             pattern: ^/api
             stateless: true
@@ -32,7 +39,11 @@ security:
             jwt: ~
 
     access_control:
+    # Stratégie :  Firewall global ouvert, sécurité granulaire au niveau des ressources API Platform
+    # Avantage : Permet endpoints publics (courses, sessions) ET privés (bookings, users)
+    # dans la même API sans configuration firewall complexe
     - { path: ^/api/login, roles: PUBLIC_ACCESS }
+    - { path: ^/api/token/refresh, roles: PUBLIC_ACCESS }
     - { path: ^/api, roles: PUBLIC_ACCESS }
 
 when@test:

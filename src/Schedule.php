@@ -2,6 +2,8 @@
 
 namespace App;
 
+use Symfony\Component\Console\Messenger\RunCommandMessage;
+use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\Schedule as SymfonySchedule;
 use Symfony\Component\Scheduler\ScheduleProviderInterface;
@@ -19,6 +21,7 @@ class Schedule implements ScheduleProviderInterface
     {
         return (new SymfonySchedule())
             ->stateful($this->cache)
-            ->processOnlyLastMissedRun(true);
+            ->processOnlyLastMissedRun(true)
+            ->add(RecurringMessage::cron('0 3 * * *', new RunCommandMessage('gesdinet:jwt:clear')));
     }
 }

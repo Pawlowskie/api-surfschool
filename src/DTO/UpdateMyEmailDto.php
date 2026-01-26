@@ -3,6 +3,7 @@
 namespace App\DTO;
 
 use App\Entity\User;
+use App\Validator\UniqueUserEmail;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -13,6 +14,7 @@ final class UpdateMyEmailDto
     #[Assert\NotBlank]
     #[Assert\Email]
     #[Assert\Length(max: 180)]
+    #[UniqueUserEmail]
     public string $email;
 
     public function __construct(string $email = '')

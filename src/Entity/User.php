@@ -8,10 +8,12 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\DTO\ChangePasswordDto;
 use App\DTO\CreateUserDto;
 use App\DTO\UpdateMyEmailDto;
 use App\DTO\UpdateUserRolesDto;
 use App\Repository\UserRepository;
+use App\State\ChangePasswordProcessor;
 use App\State\CreateUserProcessor;
 use App\State\MeProvider;
 use App\State\UpdateMyEmailProcessor;
@@ -20,7 +22,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
-use App\State\UserPasswordHasherProcessor;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -42,6 +43,13 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/me/email',
             input: UpdateMyEmailDto::class,
             processor: UpdateMyEmailProcessor::class,
+            security: "is_granted('IS_AUTHENTICATED_FULLY')",
+            normalizationContext: ['groups' => ['user:self:read']],
+        ),
+        new Patch(
+            uriTemplate: '/me/password',
+            input: ChangePasswordDto::class,
+            processor: ChangePasswordProcessor::class,
             security: "is_granted('IS_AUTHENTICATED_FULLY')",
             normalizationContext: ['groups' => ['user:self:read']],
         ),
